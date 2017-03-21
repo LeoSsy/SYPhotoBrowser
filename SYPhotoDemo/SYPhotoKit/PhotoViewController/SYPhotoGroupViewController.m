@@ -1,0 +1,419 @@
+/**************************************************************************
+ *
+ *  Created by shushaoyong on 2016/11/24.
+ *    Copyright © 2016年 踏潮. All rights reserved.
+ *
+ * 项目名称：浙江踏潮-天目山-h5模版制作软件
+ * 版权说明：本软件属浙江踏潮网络科技有限公司所有，在未获得浙江踏潮网络科技有限公司正式授权
+ *           情况下，任何企业和个人，不能获取、阅读、安装、传播本软件涉及的任何受知
+ *           识产权保护的内容。
+ *
+ ***************************************************************************/
+
+#import "SYPhotoGroupViewController.h"
+#import "SYPhotoLibraryTool.h"
+#import "SYPhotoitem.h"
+#import "SYPhotoConst.h"
+#import "SYPhotoViewController.h"
+#import "SYPhotoViewController.h"
+
+@interface SYPhotoGroupViewController ()<PHPhotoLibraryChangeObserver>
+/**相册组*/
+@property(nonatomic,strong)NSMutableArray *groups;
+/**加载动画*/
+@property(nonatomic,strong)UIActivityIndicatorView *indicatorView;
+/**没有权限提示的label*/
+@property(nonatomic,weak) UILabel *availbelLabel;
+@end
+
+@implementation SYPhotoGroupViewController
+
+- (NSMutableArray *)groups
+{
+    if (!_groups) {
+        _groups = [NSMutableArray array];
+    }
+    return _groups;
+}
+
+static NSString *const identifier = @"SYPhotoGroupViewController";
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    //加载视图
+    [self addLoadView];
+    //初始化
+    [self initialzed];
+    //获取相册权限
+    [self getPhotoAuthorized];
+}
+
+
+/**
+ 初始化操作
+ */
+- (void)initialzed
+{
+    //设置导航拦背景色
+    if (self.navBgColor) {
+        [self.navigationController.navigationBar setBackgroundImage:[UIImage createImageWithColor:self.navBgColor] forBarMetrics:UIBarMetricsDefault];
+    }else{
+         [self.navigationController.navigationBar setBackgroundImage:[UIImage createImageWithColor:[UIColor blackColor]] forBarMetrics:UIBarMetricsDefault];
+    }
+    
+    //配置导航栏颜色标题样式
+    UINavigationBar *nav = [UINavigationBar appearance];
+    [nav setTitleTextAttributes:@{NSForegroundColorAttributeName : self.navTitleColor?self.navTitleColor:[UIColor whiteColor],
+                                  NSFontAttributeName : self.titleFont?self.titleFont:[UIFont systemFontOfSize:18]
+                                  }];
+    self.navigationItem.rightBarButtonItem  = [UIBarButtonItem barbuttonitemWithTitle:@"取消" target:self action:@selector(rightItemClick)];
+    self.tableView.tableFooterView = [[UIView alloc] init];
+    [self.tableView registerClass:[SYPhotoGroupCell class] forCellReuseIdentifier:identifier];
+    [self.indicatorView startAnimating];
+
+    //监听照片界面取消按钮点击
+    [[NSNotificationCenter defaultCenter] addObserver:self  selector:@selector(closeGroupVC:) name:SYPhotoVcCancleBtnClickNote object:nil];
+}
+
+#pragma mark 获取相册权限
+
+/**
+ *  判断相机的授权状态
+ */
+- (void)getPhotoAuthorized
+{    
+    if (IsIOS8) {
+        [self checkAuthorizationStatus_AfteriOS8];
+    }else{
+        [self checkAuthorizationStatus_BeforeiOS8];
+    }
+}
+
+/**
+ *  ios8以前获取相机权限
+ */
+- (void)checkAuthorizationStatus_BeforeiOS8
+{
+    ALAuthorizationStatus status = [ALAssetsLibrary authorizationStatus];
+    switch (status)
+    {
+        case ALAuthorizationStatusNotDetermined:
+        {
+            [self requestAuthorizationStatus_BeforeiOS8];
+            break;
+        }
+        case ALAuthorizationStatusRestricted:
+        case ALAuthorizationStatusDenied:
+        {
+            [self noPHAuthorizationStatusAuthorized];
+            break;
+        }
+        case ALAuthorizationStatusAuthorized:
+        default:
+        {
+            [self loadPhotoVideoDatas];
+            break;
+        }
+    }
+}
+
+/**
+ *  ios8以后获取相机权限
+ */
+- (void)checkAuthorizationStatus_AfteriOS8
+{
+    PHAuthorizationStatus status = [PHPhotoLibrary authorizationStatus];
+    switch (status)
+    {
+        case PHAuthorizationStatusNotDetermined:
+        {
+            [self requestAuthorizationStatus_AfteriOS8];
+            break;
+        }
+        case PHAuthorizationStatusRestricted:
+        case PHAuthorizationStatusDenied:
+        {
+            [self noPHAuthorizationStatusAuthorized];
+            break;
+        }
+        case PHAuthorizationStatusAuthorized:
+        default:
+        {
+            [self loadPhotoVideoDatas];
+            break;
+        }
+    }
+}
+
+/**
+ *  ios8之后请求授权
+ */
+- (void)requestAuthorizationStatus_AfteriOS8
+{
+    [PHPhotoLibrary requestAuthorization:^(PHAuthorizationStatus status){
+        dispatch_async(dispatch_get_main_queue(), ^{
+            switch (status) {
+                case PHAuthorizationStatusAuthorized:
+                {
+                    [self loadPhotoVideoDatas];
+                    break;
+                }
+                default:
+                {
+                    [self noPHAuthorizationStatusAuthorized];
+                    break;
+                }
+            }
+        });
+    }];
+}
+
+/**
+ *  没有权限访问相册处理的方法
+ */
+- (void)noPHAuthorizationStatusAuthorized
+{
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.indicatorView stopAnimating];
+        //获取当前项目名称
+        NSString *appName = [NSBundle mainBundle].infoDictionary[@"CFBundleName"];
+        [self alertShowTitle:[NSString stringWithFormat:@"当前无法访问您的相册 请您到设置>隐私>相机 允许%@访问您的相机",appName]];
+    });
+}
+
+/**
+ *  判断相册是否可以用
+ */
+- (void)requestAuthorizationStatus_BeforeiOS8
+{
+    if (![UIImagePickerController isSourceTypeAvailable:UIImagePickerControllerSourceTypePhotoLibrary]) {
+        [self noPHAuthorizationStatusAuthorized];
+    }else{
+        [self loadPhotoVideoDatas];
+    }
+}
+
+
+#pragma mark 提示文字
+- (void)alertShowTitle:(NSString*)title
+{
+    [self.availbelLabel removeFromSuperview];
+    self.availbelLabel = nil;
+    UILabel *availbelLabel = [[UILabel alloc] init];
+    availbelLabel.numberOfLines = 0;
+    CGFloat height = SCREEN_HEIGHT*0.5;
+    availbelLabel.textAlignment = NSTextAlignmentCenter;
+    availbelLabel.frame = CGRectMake(0, 0, SCREEN_WIDTH-20 , height);
+    availbelLabel.centerX = self.view.centerX;
+    availbelLabel.centerY = self.view.centerY - 64;
+    availbelLabel.font = [UIFont systemFontOfSize:16];
+    availbelLabel.textColor = [UIColor darkGrayColor];
+    availbelLabel.text = title;
+    [self.view addSubview:availbelLabel];
+    self.availbelLabel = availbelLabel;
+}
+
+
+//====================================
+
+#pragma mark 加载图片或者视频
+- (void)loadPhotoVideoDatas
+{
+    weakifySelf
+    //只加载视频
+    if (self.videoEnabled) {
+        self.title =  @"视频";
+        /***加载视频*/
+        [[SYPhotoLibraryTool sharedInstance] ios8LoadVideosMultiGroup:YES Completion:^(NSMutableArray *groups) {
+            strongifySelf
+            [self loadDataWithGroups:groups];
+        }];
+    }else{
+        self.title =  @"照片";
+        /***加载相册组*/
+        [[SYPhotoLibraryTool sharedInstance] photoLibraryItemsMultiGroup:YES Completions:^(NSMutableArray *groups) {
+            strongifySelf
+            [self loadDataWithGroups:groups];
+        }];
+    }
+    
+}
+
+
+/**
+ 加载数据
+ */
+- (void)loadDataWithGroups:(NSMutableArray*)groups{
+    //清除之前所有的组
+    [self.groups removeAllObjects];
+    self.groups = groups;
+    [self.tableView reloadData];
+    [self.indicatorView stopAnimating];
+    [self.indicatorView removeFromSuperview];
+}
+
+#pragma mark 添加网络加载的view
+- (void)addLoadView
+{
+    UIActivityIndicatorView *indicatorView = [[UIActivityIndicatorView alloc] initWithFrame:CGRectMake(0, 0, 40, 40)];
+    indicatorView.activityIndicatorViewStyle = UIActivityIndicatorViewStyleGray;
+    indicatorView.center = self.view.center;
+    indicatorView.hidesWhenStopped = YES;
+    [self.view addSubview:indicatorView];
+    self.indicatorView = indicatorView;
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    return self.groups.count;
+}
+
+- (UITableViewCell*)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    SYPhotoGroupCell *cell = [tableView dequeueReusableCellWithIdentifier:identifier];
+    PhotoGroup *group = self.groups[indexPath.row];
+    cell.group = group;
+    return cell;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    //选中一次弹出对应控制器
+    SYPhotoViewController *photoVC = [[SYPhotoViewController alloc] init];
+    PhotoGroup *group = self.groups[indexPath.row];
+    photoVC.groupResult = group;
+    //如果是视频 一次只能选择一个
+    if (self.videoEnabled) {
+        photoVC.maxSelectedNum = 1;
+    }else{
+        photoVC.maxSelectedNum = 9;
+    }
+    photoVC.videoEnabled = self.videoEnabled;
+    [self.navigationController pushViewController:photoVC animated:YES];
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    return 60;
+}
+
+#pragma mark event
+- (void)rightItemClick
+{
+    [self dismissViewControllerAnimated:YES completion:nil];
+}
+
+/**
+ *  监听相册界面完成按钮的点击
+ */
+- (void)closeGroupVC:(NSNotification*)note
+{
+    //如果有选择视频 并且点击了确定按钮 会发送一个数组对象过来
+    if ([note.object isKindOfClass:[NSArray class]]) {
+        NSArray *photos = (NSArray*)note.object;
+        if (photos.count<=0){
+            [self dismissViewControllerAnimated:YES completion:nil];
+            return;
+        }else{
+            //照片选择完成的回调
+            if (self.didFinishcompletionBlock) {
+                self.didFinishcompletionBlock([photos copy]);
+            }
+            //关闭当前控制器
+            [self dismissViewControllerAnimated:YES completion:nil];
+        }
+    }else{
+        [self dismissViewControllerAnimated:YES completion:nil];
+    }
+}
+- (void)dealloc
+{
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+@end
+
+@interface SYPhotoGroupCell()
+@property(nonatomic,strong)UIImageView *imagV;
+@property(nonatomic,strong)UILabel *title;
+@property(nonatomic,strong)UILabel *count;
+@end
+
+@implementation  SYPhotoGroupCell
+
+- (instancetype)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier
+{
+    if (self = [super initWithStyle:style reuseIdentifier:reuseIdentifier]) {
+        self.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+        self.imagV = [[UIImageView alloc] init];
+        self.imagV.image = [UIImage imageNamed:@"addPhoto"];
+        self.imagV.contentMode = UIViewContentModeScaleAspectFill;
+        self.imagV.clipsToBounds = YES;
+        [self.contentView addSubview:self.imagV];
+        
+        self.title = [[UILabel alloc] init];
+        self.title.font = [UIFont boldSystemFontOfSize:18];
+        self.title.textColor = [UIColor blackColor];
+        [self.contentView addSubview:self.title];
+        
+        self.count = [[UILabel alloc] init];
+        self.count.font = [UIFont systemFontOfSize:16];
+        self.count.textColor = [UIColor blackColor];
+        [self.contentView addSubview:self.count];
+    }
+    return self;
+}
+
+/**
+ *  设置数据
+ *  @param group 相册组
+ */
+- (void)setGroup:(PhotoGroup *)group
+{
+    if (group==nil) {
+        return;
+    }
+    _group = group;
+    [self performSelectorInBackground:@selector(loadImage) withObject:nil];
+    self.title.text = group.groupName;
+    self.count.text = [NSString stringWithFormat:@"(%zd)",group.count];
+}
+/**
+ *  加载相册
+ */
+- (void)loadImage
+{
+    weakifySelf
+    //获取当前组所有的照片
+    [[SYPhotoLibraryTool sharedInstance] getAllAssetsFromResult:self.group.fetchResult completionBlock:^(NSArray<SYPhotoItem *> *assets) {
+        strongifySelf
+        //获取最后一张图片
+        SYPhotoItem *item = [assets lastObject];
+        //获取照片
+        [[SYPhotoLibraryTool sharedInstance] getThumbnailWithAsset:item.asset size:CGSizeMake(50, 50) completionBlock:^(UIImage *image) {
+            self.imagV.image = image;
+        }];
+    }];
+}
+/**
+ *  布局子控件
+ */
+- (void)layoutSubviews
+{
+    [super layoutSubviews];
+    CGFloat margin= 10;
+    CGFloat widht = self.frame.size.width;
+    CGFloat height = self.frame.size.height;
+    CGFloat imgh = height *0.65;
+    CGFloat imgy = (height - imgh)*0.5;
+    self.imagV.frame = CGRectMake(margin, imgy, imgh, imgh);
+    self.title.frame = CGRectMake(CGRectGetMaxX(self.imagV.frame)+margin, 0, widht*0.45, height);
+    self.count.frame = CGRectMake(CGRectGetMaxX(self.title.frame)+margin, 0, widht -widht*0.5 -imgh- 3*margin, height);
+}
+
+- (void)dealloc
+{
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+@end

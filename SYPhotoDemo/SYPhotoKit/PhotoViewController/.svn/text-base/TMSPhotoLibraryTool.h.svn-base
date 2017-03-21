@@ -1,0 +1,82 @@
+/**************************************************************************
+ *
+ *  Created by shushaoyong on 2016/11/11.
+ *    Copyright © 2016年 踏潮. All rights reserved.
+ * 
+ * 项目名称：浙江踏潮-天目山-h5模版制作软件
+ * 版权说明：本软件属浙江踏潮网络科技有限公司所有，在未获得浙江踏潮网络科技有限公司正式授权
+ *           情况下，任何企业和个人，不能获取、阅读、安装、传播本软件涉及的任何受知
+ *           识产权保护的内容。
+ *
+ ***************************************************************************/
+
+#import <Foundation/Foundation.h>
+#import "PhotoItem.h"
+
+
+@interface TMSPhotoLibraryTool : NSObject
+
+/**
+ *  单粒方法
+ *
+ *  @return 返回当前对象
+ */
++ (instancetype) sharedInstance;
+
+/**
+ *  获取相册组的所有的图片 和所有的相册组
+ *  @param multiGroup  是否需要加载多组数据
+ *  @param completions 成功后的回调
+ */
+- (void)photoLibraryItemsMultiGroup:(BOOL)multiGroup Completions:(void(^)(NSMutableArray* groups))completions;
+
+/**
+ *  获取相册中的所有图片,视频
+ *
+ *  @param result             对应相册  PHFetchResult or ALAssetsGroup<ALAsset>
+ *  @param pickingVideoEnable 是否允许选择视频
+ *  @param completionBlock    回调block
+ */
+- (void)getAllAssetsFromResult:(id)result completionBlock:(void(^)(NSArray<PhotoItem *> * assets))completionBlock;
+
+/**
+ *  根据提供的asset 获取原图图片
+ *  使用异步获取asset的原图图片
+ *  @param asset           具体资源 <PHAsset or ALAsset>
+ *  @param completionBlock 回到block
+ */
+- (void)getOriginImageWithAsset:(id)asset
+                completionBlock:(void(^)(UIImage * image))completionBlock;
+    
+/**
+ *  根据提供的asset获取缩略图
+ *  使用同步方法获取
+ *  @param asset           具体的asset资源 PHAsset or ALAsset
+ *  @param size            缩略图大小
+ *  @param completionBlock 回调block
+ */
+- (void)getThumbnailWithAsset:(id)asset
+                         size:(CGSize)size
+              completionBlock:(void(^)(UIImage * image))completionBlock;
+
+
+/**
+ *  根据asset 获取预览图 非高清图
+ *
+ *  @param asset           提供的asset资源 PHAsset or ALAsset
+ *  @param completionBlock 回调block
+ */
+- (void)getPreviewImageWithAsset:(id)asset
+                 completionBlock:(void(^)(UIImage * image))completionBlock;
+    
+    
+/**
+ *  根据asset 获取图片地址 和 图片的方向
+ *
+ *  @param asset           提供的asset资源 PHAsset or ALAsset
+ *  @param completionBlock 回调block
+ */
+- (void)getImageAssetUrlWithAsset:(id)asset
+                  completionBlock:(void(^)(NSString *  url,UIImageOrientation imageOrientation))completionBlock;
+    
+@end

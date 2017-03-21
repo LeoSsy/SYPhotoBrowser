@@ -1,0 +1,248 @@
+/**************************************************************************
+ *
+ *  Created by shushaoyong on 2016/11/24.
+ *    Copyright © 2016年 踏潮. All rights reserved.
+ *
+ * 项目名称：浙江踏潮-天目山-h5模版制作软件
+ * 版权说明：本软件属浙江踏潮网络科技有限公司所有，在未获得浙江踏潮网络科技有限公司正式授权
+ *           情况下，任何企业和个人，不能获取、阅读、安装、传播本软件涉及的任何受知
+ *           识产权保护的内容。
+ *
+ ***************************************************************************/
+
+#import "TMSPhotoGroupViewController.h"
+#import "TMSPhotoLibraryTool.h"
+#import "Photoitem.h"
+#import "TianmushanAPI.h"
+#import "TMSCreateTemplateViewController.h"
+#import "PhotoViewController.h"
+
+@interface TMSPhotoGroupViewController ()
+
+/**相册组*/
+@property(nonatomic,strong)NSMutableArray *groups;
+
+/**加载动画*/
+@property(nonatomic,strong)UIActivityIndicatorView *indicatorView;
+
+@end
+
+@implementation TMSPhotoGroupViewController
+
+- (NSMutableArray *)groups
+{
+    if (!_groups) {
+        _groups = [NSMutableArray array];
+    }
+    return _groups;
+}
+
+static NSString *const identifier = @"TMSPhotoGroupViewController";
+
+- (void)viewDidLoad {
+    
+    [super viewDidLoad];
+    
+    [self addLoadView];
+    TMSCreateTemplateViewController *createTemplatevc = [[TMSCreateTemplateViewController alloc] init];
+    createTemplatevc.mode = self.mode;
+    [self.navigationController pushViewController:createTemplatevc animated:NO];
+    self.title =  @"照片";
+    self.tableView.tableFooterView = [[UIView alloc] init];
+    [self.tableView registerClass:[TMSPhotoGroupCell class] forCellReuseIdentifier:identifier];
+    self.navigationItem.rightBarButtonItem  = [UIBarButtonItem barbuttonitemWithTitle:@"取消" target:self action:@selector(rightItemClick)];
+    
+    weakifySelf
+    [self.indicatorView startAnimating];
+    
+    /**
+     *  加载相册组
+     */
+    [[TMSPhotoLibraryTool sharedInstance] photoLibraryItemsMultiGroup:YES Completions:^(NSMutableArray *groups) {
+        strongifySelf
+        //清除之前所有的组
+        [self.groups removeAllObjects];
+        //去除重复的组
+        NSMutableArray *temp = [NSMutableArray array];
+        NSString *lastTitle = nil;
+        for (PhotoGroup *group in groups) {
+            if ([lastTitle isEqualToString:group.groupName]) {
+                [temp addObject:group];
+            }
+            lastTitle = group.groupName;
+        }
+        [groups removeObjectsInArray:temp];
+        self.groups = groups;
+        [self.tableView reloadData];
+        [self.indicatorView stopAnimating];
+        [self.indicatorView removeFromSuperview];
+    
+    }];
+    
+    //监听照片界面取消按钮点击
+    [[NSNotificationCenter defaultCenter] addObserver:self  selector:@selector(closeGroupVC:) name:KRAPI_CREATETIDE_CLOSEPHOTOGROUPNOTE object:nil];
+    
+}
+
+- (void)dealloc
+{
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+#pragma mark 添加网络加载的view
+- (void)addLoadView
+{
+    UIActivityIndicatorView *indicatorView = [[UIActivityIndicatorView alloc] initWithFrame:CGRectMake(0, 0, 40, 40)];
+    indicatorView.activityIndicatorViewStyle = UIActivityIndicatorViewStyleGray;
+    indicatorView.center = self.view.center;
+    indicatorView.hidesWhenStopped = YES;
+    [self.view addSubview:indicatorView];
+    self.indicatorView = indicatorView;
+}
+
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    return self.groups.count;
+}
+
+- (UITableViewCell*)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    TMSPhotoGroupCell *cell = [tableView dequeueReusableCellWithIdentifier:identifier];
+    PhotoGroup *group = self.groups[indexPath.row];
+    cell.group = group;
+
+    return cell;
+}
+
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    
+    TMSCreateTemplateViewController *createTemplatevc = [[TMSCreateTemplateViewController alloc] init];
+    createTemplatevc.mode = self.mode;
+    createTemplatevc.group =self.groups[indexPath.row];
+    [self.navigationController pushViewController:createTemplatevc animated:YES];
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    return 60;
+}
+
+
+#pragma mark event
+- (void)rightItemClick
+{
+    [self dismissViewControllerAnimated:YES completion:nil];
+}
+
+/**
+ *  监听相册界面完成按钮的点击
+ */
+- (void)closeGroupVC:(NSNotification*)note
+{
+    if ([note.object isKindOfClass:[NSArray class]]) {
+        NSArray *photos = (NSArray*)note.object;
+        if (photos.count<=0){
+            [self dismissViewControllerAnimated:YES completion:nil];
+            return;
+        }
+        //发送照片选择完成的通知
+        [[NSNotificationCenter defaultCenter] postNotificationName:KRAPI_PHOTOVIEWCONTROLLER_DIDFINISHPHOTOS object:[photos copy]];
+        [self dismissViewControllerAnimated:YES completion:nil];
+    }else{
+        [self dismissViewControllerAnimated:YES completion:nil];
+    }
+}
+@end
+
+@interface TMSPhotoGroupCell()
+@property(nonatomic,strong)UIImageView *imagV;
+@property(nonatomic,strong)UILabel *title;
+@property(nonatomic,strong)UILabel *count;
+@end
+
+@implementation  TMSPhotoGroupCell
+
+- (instancetype)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier
+{
+    if (self = [super initWithStyle:style reuseIdentifier:reuseIdentifier]) {
+        
+        self.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+        self.imagV = [[UIImageView alloc] init];
+        self.imagV.image = [UIImage imageNamed:@"addPhoto"];
+        self.imagV.contentMode = UIViewContentModeScaleAspectFill;
+        self.imagV.clipsToBounds = YES;
+        [self.contentView addSubview:self.imagV];
+        
+        self.title = [[UILabel alloc] init];
+        self.title.font = [UIFont boldSystemFontOfSize:18];
+        self.title.textColor = [UIColor blackColor];
+        [self.contentView addSubview:self.title];
+        
+        
+        self.count = [[UILabel alloc] init];
+        self.count.font = [UIFont systemFontOfSize:16];
+        self.count.textColor = [UIColor blackColor];
+        [self.contentView addSubview:self.count];
+    }
+    return self;
+}
+
+/**
+ *  设置数据
+ *
+ *  @param group 相册组
+ */
+- (void)setGroup:(PhotoGroup *)group
+{
+    if (group==nil) {
+        return;
+    }
+    _group = group;
+    [self performSelectorInBackground:@selector(loadImage) withObject:nil];
+    self.title.text = group.groupName;
+    self.count.text = [NSString stringWithFormat:@"(%zd)",group.count];
+}
+
+/**
+ *  加载相册
+ */
+- (void)loadImage
+{
+    weakifySelf
+    //获取当前组所有的照片
+    [[TMSPhotoLibraryTool sharedInstance] getAllAssetsFromResult:self.group.fetchResult completionBlock:^(NSArray<PhotoItem *> *assets) {
+        strongifySelf
+        //获取最后一张图片
+        PhotoItem *item = [assets lastObject];
+        //获取照片
+        [[TMSPhotoLibraryTool sharedInstance] getThumbnailWithAsset:item.asset size:CGSizeMake(50, 50) completionBlock:^(UIImage *image) {
+            self.imagV.image = image;
+        }];
+    }];
+    
+}
+/**
+ *  布局子控件
+ */
+- (void)layoutSubviews
+{
+    [super layoutSubviews];
+    CGFloat margin= 10;
+    CGFloat widht = self.frame.size.width;
+    CGFloat height = self.frame.size.height;
+    CGFloat imgh = height *0.65;
+    CGFloat imgy = (height - imgh)*0.5;
+    self.imagV.frame = CGRectMake(margin, imgy, imgh, imgh);
+    self.title.frame = CGRectMake(CGRectGetMaxX(self.imagV.frame)+margin, 0, widht*0.45, height);
+    self.count.frame = CGRectMake(CGRectGetMaxX(self.title.frame)+margin, 0, widht -widht*0.5 -imgh- 3*margin, height);
+}
+
+- (void)dealloc
+{
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+@end

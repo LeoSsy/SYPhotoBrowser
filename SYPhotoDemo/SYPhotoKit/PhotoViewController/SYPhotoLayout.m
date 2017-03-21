@@ -1,0 +1,43 @@
+/**************************************************************************
+ *
+ *  Created by shushaoyong on 2016/10/27.
+ *    Copyright © 2016年 踏潮. All rights reserved.
+ *
+ * 项目名称：浙江踏潮-天目山-h5模版制作软件
+ * 版权说明：本软件属浙江踏潮网络科技有限公司所有，在未获得浙江踏潮网络科技有限公司正式授权
+ *           情况下，任何企业和个人，不能获取、阅读、安装、传播本软件涉及的任何受知
+ *           识产权保护的内容。
+ ***************************************************************************/
+
+#import "SYPhotoLayout.h"
+#import "SYPhotoConst.h"
+
+@implementation SYPhotoLayout
+
+/**
+ *  布局每一个item的大小 行间距 列间距
+ */
+- (void)prepareLayout
+{
+    CGFloat margin = 5;
+    self.minimumLineSpacing = margin;
+    self.minimumInteritemSpacing = margin;
+    //1. 如果是 5s 显示 3列
+    if (IS_IPHONE_5||IS_IPHONE_4_OR_LESS) {
+        
+        CGFloat itemw = (SCREEN_WIDTH - 4*margin)/3;
+        self.itemSize = CGSizeMake(itemw, itemw);
+
+    }else if (IS_IPHONE_6 || IS_IPHONE_6P){
+        
+        CGFloat itemw = (SCREEN_WIDTH - 5*margin)/4;
+        self.itemSize = CGSizeMake(itemw, itemw);
+        
+    }else if (IS_IPHONE_7 || IS_IPHONE_7P){
+        
+        CGFloat itemw = (SCREEN_WIDTH - 5*margin)/4;
+        self.itemSize = CGSizeMake(itemw, itemw);
+    }
+}
+
+@end
