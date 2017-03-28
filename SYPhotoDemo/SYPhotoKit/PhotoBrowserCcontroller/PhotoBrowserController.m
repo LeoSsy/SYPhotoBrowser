@@ -19,19 +19,14 @@
 #define PhotoBrowserControllerScreenWidth  [UIScreen mainScreen].bounds.size.width
 
 @interface PhotoBrowserController ()<PhotoBrowserCellDelegate>
-
 /**导航栏标题*/
 @property(nonatomic,weak)UILabel *titleLabel;
-
 /**返回按钮*/
 @property(nonatomic,weak)UIButton *close;
-
 /**保存图片下载队列*/
 @property(nonatomic,strong)NSMutableDictionary *imageDequeues;
-
 /**导航栏*/
 @property(nonatomic,strong)UIView *navView;
-
 @end
 
 @implementation PhotoBrowserController
@@ -73,6 +68,45 @@ static NSString * const reuseIdentifier = @"PhotoBrowserCell";
     [self.navigationController.navigationBar setHidden:NO];
 }
 
+/**展示图片浏览器*/
+- (void)show
+{
+    self.collectionView.hidden = YES;
+    self.navView.hidden = YES;
+    UIWindow *window = [UIApplication sharedApplication].keyWindow;
+    [window addSubview:self.view];
+    [window.rootViewController addChildViewController:self];
+    
+    //1. 获取当前点击的cell 的图片的frame 创建一个占位的图片覆盖到上面
+    //0.1创建占位图片
+    self.view.backgroundColor = [UIColor blackColor];
+    //将cell 的坐标转换为 window 的坐标
+    CGRect orignalFrame = [self.sourceView convertRect:self.sourceView.frame toView:window];
+    UIImageView *placeView = [[UIImageView alloc] initWithFrame:orignalFrame];
+    placeView.image = self.placeImage?self.placeImage: [UIImage imageNamed:@""];
+    placeView.alpha = 0.0;
+    //4. 添加占位图像到窗口
+    [window addSubview:placeView];
+    //如果没有来源view久不显示
+    if (self.sourceView == nil) {
+        return;
+    }
+    CGFloat toHeight = self.placeImage.size.height * (SCREEN_WIDTH)/self.placeImage.size.width;
+    CGSize size = CGSizeMake(SCREEN_WIDTH,toHeight);
+    
+    //计算图片比例
+    CGRect endFrame = CGRectMake(0, 0, size.width, size.height);
+    //5. 做缩放动画   动画完成后 移除占位图片
+    [UIView animateWithDuration:0.25 animations:^{
+        placeView.center = self.collectionView.center;
+        placeView.bounds =endFrame;
+        placeView.alpha = 1.0;
+    } completion:^(BOOL finished) {
+        [placeView removeFromSuperview];
+        self.collectionView.hidden = NO;
+    }];
+}
+
 /**
  *  设置动画
  *
@@ -81,7 +115,6 @@ static NSString * const reuseIdentifier = @"PhotoBrowserCell";
 - (void)setAnimating:(BOOL)animating
 {
     _animating = animating;
-    
     if (animating) {
         self.navView.backgroundColor = [UIColor clearColor];
         self.close.hidden = YES;
@@ -91,7 +124,6 @@ static NSString * const reuseIdentifier = @"PhotoBrowserCell";
 #pragma mark 初始化设置
 - (void)setup
 {
-    
     [self addNavView];
     self.automaticallyAdjustsScrollViewInsets = NO;
     self.collectionView.contentSize = CGSizeMake((PhotoBrowserControllerScreenWidth + 16) * self.images.count, SCREEN_HEIGHT);
@@ -124,7 +156,6 @@ static NSString * const reuseIdentifier = @"PhotoBrowserCell";
     titleLabel.textColor = [UIColor whiteColor];
     [navView addSubview:titleLabel];
     self.titleLabel = titleLabel;
-
     
     UIButton *backButton = [UIButton buttonWithType:UIButtonTypeCustom];
     backButton.frame = CGRectMake(0, 0, 54, 44);
@@ -160,11 +191,10 @@ BOOL selected = false;
  */
 - (void)setCurrentIndex:(NSInteger)currentIndex
 {
-    self.titleLabel.text = [NSString stringWithFormat:@"%zd/%zd",(++currentIndex),self.images.count];
-
+    _currentIndex = currentIndex;
+    self.titleLabel.text = [NSString stringWithFormat:@"%zd/%zd",(currentIndex+1),self.images.count];
     [self showImageAtIndex:currentIndex];
 }
-
 
 #pragma mark <UICollectionViewDataSource>
 - (NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section {
@@ -179,7 +209,6 @@ BOOL selected = false;
     cell.indexPath = indexPath;
     return cell;
 }
-
 
 #pragma mark  scrollview offset
 
@@ -197,6 +226,7 @@ BOOL selected = false;
     }else if (offsetX<=0){
         index = 1;
     }
+    NSLog(@"scrollViewDidEndDecelerating===%zd",index);
     self.titleLabel.text = [NSString stringWithFormat:@"%zd/%zd",index,self.images.count];
 }
 
@@ -208,11 +238,43 @@ BOOL selected = false;
     }
 }
 
-
 #pragma mark PhotoBrowserCellDelegate
 - (void)photoBrowserCellImageClick:(PhotoBrowserCell *)cell indexPath:(NSIndexPath *)indexPath
 {
-    [self tap];
+    //如果需要动画按照动画的方式 缩放图片
+    if (self.isAnimating) {
+        //0.获取window
+        UIWindow *window = [UIApplication sharedApplication].keyWindow;
+        window.backgroundColor = [UIColor blackColor];
+        //1. 获取当前点击的cell 的图片的frame 创建一个占位的图片覆盖到上面
+        //0.1创建占位图片
+        //将cell 的坐标转换为 window 的坐标
+        CGRect orignalFrame = [cell convertRect:cell.imageView.frame toView:window];
+        UIImageView *placeView = [[UIImageView alloc] initWithFrame:orignalFrame];
+        placeView.image = cell.imageView.image;
+        placeView.alpha = 1.0;
+        //4. 添加占位图像到窗口
+        [window addSubview:placeView];
+        [self.view removeFromSuperview];
+        //2. 然后获取cell 当前的模型 对应的来源view
+        PhotoBrowserItem *item = self.images[indexPath.row];
+        //如果没有来源view久不显示
+        if (item.sourceView == nil) {
+            return;
+        }
+        UIView *sourceView = item.sourceView;
+        //3. 然后将当前的坐标 转换到window 上的坐标
+        CGRect endFrame = [sourceView convertRect:sourceView.frame toView:window];
+        //5. 做缩放动画   动画完成后 移除占位图片
+        [UIView animateWithDuration:0.25 animations:^{
+            placeView.frame = endFrame;
+        } completion:^(BOOL finished) {
+            [placeView removeFromSuperview];
+            [self removeFromParentViewController];
+        }];
+    }else{ //否则直接关闭
+        [self tap];
+    }
 }
 
 #pragma mark 关闭当前视图方法
@@ -234,7 +296,7 @@ BOOL selected = false;
 @property (nonatomic, strong) UIView *containerView;
 
 /**网络图片正在加载的控件*/
-@property(nonatomic,weak)PhotoLoadView *loadView;
+@property(nonatomic,strong)PhotoLoadView *loadView;
 
 /**本地相册正在加载的控件*/
 @property(nonatomic,weak)UIActivityIndicatorView *indicatorView;
@@ -243,47 +305,60 @@ BOOL selected = false;
 
 @implementation PhotoBrowserCell
 
+- (PhotoLoadView *)loadView
+{
+    if (!_loadView) {
+        _loadView = [[PhotoLoadView alloc] init];
+        _loadView.backgroundColor = [UIColor whiteColor];
+        [self.contentView addSubview:_loadView];
+    }
+    return _loadView;
+}
+
 #pragma mark 设置界面数据
 - (void)setItem:(PhotoBrowserItem *)item
 {
     _item = item;
-
     self.indicatorView.hidden = NO;
     self.loadView.hidden = YES;
     [self.loadView showLoading];
-    
-    if ([item.imageUrl hasPrefix:@"http://"]) {
-        [self.imageView sd_setImageWithURL:[NSURL URLWithString:item.imageUrl] completed:^(UIImage * _Nullable image, NSError * _Nullable error, SDImageCacheType cacheType, NSURL * _Nullable imageURL) {
-            [self.loadView removeFromSuperview];
+    if ([item.imageUrl hasPrefix:@"http://"]) { //处理网络图片
+        [self.imageView sd_setImageWithURL:[NSURL URLWithString:item.imageUrl] placeholderImage:nil options:SDWebImageProgressiveDownload progress:^(NSInteger receivedSize, NSInteger expectedSize) {
+            self.loadView.progress = receivedSize/expectedSize;
+        } completed:^(UIImage *image, NSError *error, SDImageCacheType cacheType, NSURL *imageURL) {
+            if (error) {
+                [self.loadView showFailure];
+            }else{
+                [self _resizeSubviews];
+                [self.indicatorView stopAnimating];
+                [self.loadView removeFromSuperview];
+            }
         }];
-        return;
-    }
-
-    if ([[UIDevice currentDevice].systemVersion floatValue]<8.0) {
-
-        ALAsset *asset = (ALAsset*)item.asset;
-        self.imageView.image = [UIImage resizeImage1280WithItem:[UIImage imageWithCGImage:asset.defaultRepresentation.fullScreenImage]];
-        [self.indicatorView stopAnimating];
-        [self.indicatorView removeFromSuperview];
-
-    }else{
-
-        [self.contentView insertSubview:self.indicatorView aboveSubview:self.imageView];
-        [self.indicatorView startAnimating];
-        PHAsset *asset = (PHAsset*)item.asset;
-        weakifySelf
-        //异步加载图片
-        dispatch_async(dispatch_get_global_queue(0, 0), ^{
-            strongifySelf
-            [[SYPhotoLibraryTool sharedInstance] getThumbnailWithAsset:asset size:CGSizeMake(asset.pixelWidth,asset.pixelHeight) completionBlock:^(UIImage *image) {
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    self.imageView.image = image;
-                    [self _resizeSubviews];
-                    [self.indicatorView stopAnimating];
-                    [self.indicatorView removeFromSuperview];
-                });
-            }];
-        });
+        
+    }else{ //处理本地图片
+        if ([[UIDevice currentDevice].systemVersion floatValue]<8.0) {
+            ALAsset *asset = (ALAsset*)item.asset;
+            self.imageView.image = [UIImage resizeImage1280WithItem:[UIImage imageWithCGImage:asset.defaultRepresentation.fullScreenImage]];
+            [self.indicatorView stopAnimating];
+            [self.indicatorView removeFromSuperview];
+        }else{
+            [self.contentView insertSubview:self.indicatorView aboveSubview:self.imageView];
+            [self.indicatorView startAnimating];
+            PHAsset *asset = (PHAsset*)item.asset;
+            weakifySelf
+            //异步加载图片
+            dispatch_async(dispatch_get_global_queue(0, 0), ^{
+                strongifySelf
+                [[SYPhotoLibraryTool sharedInstance] getThumbnailWithAsset:asset size:CGSizeMake(asset.pixelWidth,asset.pixelHeight) completionBlock:^(UIImage *image) {
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        self.imageView.image = image;
+                        [self _resizeSubviews];
+                        [self.indicatorView stopAnimating];
+                        [self.indicatorView removeFromSuperview];
+                    });
+                }];
+            });
+        }
     }
 }
 
@@ -306,18 +381,11 @@ BOOL selected = false;
     [self.scrollView addSubview:self.containerView];
     [self.contentView addSubview:self.scrollView];
     
-    PhotoLoadView *loadView = [[PhotoLoadView alloc] init];
-    loadView.backgroundColor = [UIColor whiteColor];
-    [self.contentView addSubview:loadView];
-    self.loadView = loadView;
-
-
     UIActivityIndicatorView *indicatorView = [[UIActivityIndicatorView alloc] initWithFrame:CGRectMake((SCREEN_WIDTH-50)*0.5, (SCREEN_HEIGHT-50)*0.5, 50, 50)];
-    
     indicatorView.activityIndicatorViewStyle = UIActivityIndicatorViewStyleWhiteLarge;
     [self.contentView addSubview:indicatorView];
     self.indicatorView = indicatorView;
-
+    
     UITapGestureRecognizer *singleTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(_handleSingleTap)];
     UITapGestureRecognizer *doubleTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(_handleDoubleTap:)];
     doubleTap.numberOfTapsRequired = 2;
@@ -387,7 +455,7 @@ BOOL selected = false;
 
 /**
  *  用户缩放图片的时候调用此方法
-*/
+ */
 - (void)scrollViewDidZoom:(UIScrollView *)scrollView {
     
     CGFloat offsetX = (scrollView.frame.size.width > scrollView.contentSize.width) ? (scrollView.frame.size.width - scrollView.contentSize.width) * 0.5 : 0.0;
@@ -435,7 +503,6 @@ BOOL selected = false;
 
 /**
  *  懒加载imageview
- *
  */
 - (UIImageView *)imageView {
     if (!_imageView) {
@@ -448,7 +515,6 @@ BOOL selected = false;
     return _imageView;
 }
 
-
 #pragma mark - Class Methods
 /**
  *  调整到指定尺寸
@@ -460,9 +526,7 @@ BOOL selected = false;
  */
 + (CGSize)adjustOriginSize:(CGSize)originSize
               toTargetSize:(CGSize)targetSize {
-    
     CGSize resultSize = CGSizeMake(originSize.width, originSize.height);
-    
     /** 计算图片的比例 */
     CGFloat widthPercent = (originSize.width ) / (targetSize.width);
     CGFloat heightPercent = (originSize.height ) / targetSize.height;

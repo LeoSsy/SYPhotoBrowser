@@ -13,7 +13,6 @@
 #import <AssetsLibrary/AssetsLibrary.h>
 #import <Photos/Photos.h>
 
-
 @interface PhotoGroup : NSObject
 
 /**每一组的封面图*/
@@ -29,7 +28,7 @@
 @property(nonatomic,strong)PHFetchResult *fetchResult;
 
 /**组对应图片数*/
-@property(nonatomic,strong)NSArray *images;// 里面存储 PhotoItem
+@property(nonatomic,strong)NSArray *images;// 里面存储 SYPhotoItem
 
 /**
  *  快速构建组对象
@@ -44,7 +43,7 @@
 @end
 
 
-@interface PhotoItem : NSObject
+@interface SYPhotoItem : NSObject
 
 /**高清图片的地址*/
 @property(nonatomic,strong)NSString *url;
@@ -66,6 +65,9 @@
 
 /**ALAsset对象*/
 @property(nonatomic,strong)ALAsset *alasset;
+
+/**视频数据*/
+@property(nonatomic,strong)NSData *videoData;
 
 /**Asset对象*/
 @property(nonatomic,strong)id asset;
@@ -91,5 +93,10 @@
 /**图片上传到服务器 对应的压缩尺寸 此字段是额外辅助字段*/
 @property(nonatomic,assign)CGSize scaleSize;
 
+/**
+ 获取原图
+ @param completion 获取完成后的回调
+ */
+- (void)getOriginalImageWithCompletion:(void(^)(UIImage *image))completion;
 
 @end

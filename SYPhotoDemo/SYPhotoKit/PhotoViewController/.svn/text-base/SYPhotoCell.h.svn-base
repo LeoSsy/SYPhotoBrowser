@@ -10,38 +10,28 @@
  ***************************************************************************/
 #import <UIKit/UIKit.h>
 
-@class PhotoItem,PhotoCell;
+@class SYPhotoItem,SYPhotoCell;
 
-@protocol PhotoCellDelegate <NSObject>
+@protocol SYPhotoCellDelegate <NSObject>
 
 @optional
 
 /**点击图片预览 */
-- (void)photoCellCoverDidSelected:(PhotoCell*)cell currentIndex:(NSInteger)currentIndex;
-
+- (void)photoCellCoverDidSelected:(SYPhotoCell*)cell currentIndex:(NSInteger)currentIndex;
 /**选中 */
-- (void)photoCellDidSelected:(PhotoCell*)cell;
-
+- (void)photoCellDidSelected:(SYPhotoCell*)cell;
 /**取消选中 */
-- (void)photoCellCancleSelected:(PhotoCell*)cell;
-
+- (void)photoCellCancleSelected:(SYPhotoCell*)cell;
 @end
 
-
-@interface PhotoCell : UICollectionViewCell
+@interface SYPhotoCell : UICollectionViewCell
 
 /**Photoitem 模型 */
-@property(nonatomic,strong)PhotoItem *photoItem;
-
+@property(nonatomic,strong)SYPhotoItem *photoItem;
 /**delegate*/
-@property(nonatomic,weak)id<PhotoCellDelegate> delegate;
-
+@property(nonatomic,weak)id<SYPhotoCellDelegate> delegate;
 /**indexPath */
 @property(nonatomic,strong)NSIndexPath *indexPath;
-
-/**选中按钮*/
-@property (weak, nonatomic) IBOutlet UIButton *selectBtn;
-
-
-
+/**选择按钮*/
+@property(nonatomic,strong)UIButton *selectBtn;
 @end

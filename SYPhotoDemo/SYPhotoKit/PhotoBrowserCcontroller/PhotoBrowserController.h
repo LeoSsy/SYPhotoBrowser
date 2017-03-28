@@ -26,6 +26,12 @@
 /**图片的来源视图*/
 @property(nonatomic,strong)UIView *sourceView;
 
+/**图片的来源视图显示的图片*/
+@property(nonatomic,strong)UIImage *placeImage;
+
+/**展示图片浏览器*/
+- (void)show;
+
 @end
 
 @class PhotoBrowserCell;

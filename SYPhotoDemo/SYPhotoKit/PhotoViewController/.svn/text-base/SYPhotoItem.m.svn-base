@@ -9,12 +9,12 @@
  *           识产权保护的内容。
  ***************************************************************************/
 
-#import "Photoitem.h"
+#import "SYPhotoitem.h"
 #import "NSString+SY.h"
 #import "NSDate+SY.h"
 #import <CoreLocation/CoreLocation.h>
-#import "TianmushanAPI.h"
-#import "TMSPhotoLibraryTool.h"
+#import "SYPhotoConst.h"
+#import "SYPhotoLibraryTool.h"
 
 @implementation PhotoGroup
 
@@ -85,7 +85,7 @@
 }
 @end
 
-@implementation PhotoItem
+@implementation SYPhotoItem
 
 /**
  *  返回当前照片的拍摄时间
@@ -103,6 +103,22 @@
         return [self.asset valueForProperty:ALAssetPropertyDate];
     }
 }
+
+/**
+ 获取原图
+ @param completion 获取完成后的回调
+ */
+- (void)getOriginalImageWithCompletion:(void(^)(UIImage *image))completion
+{
+    if (self.asset) {
+        [[SYPhotoLibraryTool sharedInstance] getOriginImageWithAsset:self.asset completionBlock:^(UIImage *image) {
+            if (completion) {
+                completion(image);
+            }
+        }];
+    }
+}
+
 
 /**
  *  获取asset对象

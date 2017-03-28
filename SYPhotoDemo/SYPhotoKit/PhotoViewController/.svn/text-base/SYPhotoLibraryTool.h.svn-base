@@ -11,10 +11,10 @@
  ***************************************************************************/
 
 #import <Foundation/Foundation.h>
-#import "PhotoItem.h"
+#import "SYPhotoItem.h"
 
 
-@interface TMSPhotoLibraryTool : NSObject
+@interface SYPhotoLibraryTool : NSObject
 
 /**
  *  单粒方法
@@ -22,6 +22,13 @@
  *  @return 返回当前对象
  */
 + (instancetype) sharedInstance;
+
+
+/**
+ *获取相册权限
+ *authorized 是否有权限
+ */
+- (void)getPhotoAuthorized:(void (^)(BOOL authorized))completion;
 
 /**
  *  获取相册组的所有的图片 和所有的相册组
@@ -31,13 +38,25 @@
 - (void)photoLibraryItemsMultiGroup:(BOOL)multiGroup Completions:(void(^)(NSMutableArray* groups))completions;
 
 /**
+ *  ios8以后加载相册视频的方法
+ *  @param completions 成功之后的回调
+ */
+- (void)ios8LoadVideosMultiGroup:(BOOL)multiGroup Completion:(void(^)(NSMutableArray* groups))completions;
+
+/**
+ 根据asset获取视频
+ @param asset PHAsset 对象
+ @param result 成功的回调
+ */
++ (void)getVideoFromPHAsset:(PHAsset *)asset Complete:(void(^)(NSData *data,NSString *fileName))result;
+
+/**
  *  获取相册中的所有图片,视频
  *
  *  @param result             对应相册  PHFetchResult or ALAssetsGroup<ALAsset>
- *  @param pickingVideoEnable 是否允许选择视频
  *  @param completionBlock    回调block
  */
-- (void)getAllAssetsFromResult:(id)result completionBlock:(void(^)(NSArray<PhotoItem *> * assets))completionBlock;
+- (void)getAllAssetsFromResult:(id)result completionBlock:(void(^)(NSArray<SYPhotoItem *> * assets))completionBlock;
 
 /**
  *  根据提供的asset 获取原图图片
@@ -58,7 +77,6 @@
 - (void)getThumbnailWithAsset:(id)asset
                          size:(CGSize)size
               completionBlock:(void(^)(UIImage * image))completionBlock;
-
 
 /**
  *  根据asset 获取预览图 非高清图

@@ -105,6 +105,22 @@
 }
 
 /**
+ 获取原图
+ @param completion 获取完成后的回调
+ */
+- (void)getOriginalImageWithCompletion:(void(^)(UIImage *image))completion
+{
+    if (self.asset) {
+        [[SYPhotoLibraryTool sharedInstance] getOriginImageWithAsset:self.asset completionBlock:^(UIImage *image) {
+            if (completion) {
+                completion(image);
+            }
+        }];
+    }
+}
+
+
+/**
  *  获取asset对象
  *
  *  @return 返回对应版本的asset对象

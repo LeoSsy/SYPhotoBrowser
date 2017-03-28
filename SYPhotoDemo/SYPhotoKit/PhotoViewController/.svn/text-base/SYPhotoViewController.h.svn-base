@@ -11,9 +11,9 @@
 
 #import <UIKit/UIKit.h>
 
-@class PhotoViewController,PhotoGroup;
+@class SYPhotoViewController,PhotoGroup;
 
-@protocol PhotoViewControllerDelegate <NSObject>
+@protocol SYPhotoViewControllerDelegate <NSObject>
 
 @optional
 
@@ -23,7 +23,7 @@
  *  @param vc         self
  *  @param photoItems 选中的所有的照片
  */
-- (void)photoViewController:(PhotoViewController*)vc didFinishPhotoItem:(NSArray*)photoItems;
+- (void)photoViewController:(SYPhotoViewController*)vc didFinishSYPhotoItem:(NSArray*)photoItems;
 
 
 /**
@@ -33,33 +33,28 @@
  *  @param photoItems 当前显示的所有的照片
  *  @param index      当前图片对应的index
  */
-- (void)photoViewController:(PhotoViewController*)vc didClickedItemIndex:(NSInteger)index items:(NSArray*)photoItems;
-
+- (void)photoViewController:(SYPhotoViewController*)vc didClickedItemIndex:(NSInteger)index items:(NSArray*)photoItems;
 
 /**
  *  取消的时候调用
  *
  *  @param vc 相册控制器
  */
-- (void)photoViewControllerCancle:(PhotoViewController*)vc;
+- (void)photoViewControllerCancle:(SYPhotoViewController*)vc;
 
 @end
 
-@interface PhotoViewController : UIViewController
-
+@interface SYPhotoViewController : UIViewController
 /**最多选择多少张*/
 @property(nonatomic,assign)NSInteger maxSelectedNum;
-
 /**是否需要放大动画*/
 @property(nonatomic,assign,getter=isAnimating)BOOL animating;
-
 /**delegate*/
-@property(nonatomic,weak)id<PhotoViewControllerDelegate>photoDelegate;
-
+@property(nonatomic,weak)id<SYPhotoViewControllerDelegate>photoDelegate;
 /**相册组*/
 @property(nonatomic,strong)PhotoGroup *groupResult;
-
-
+/**此属性设置为true 则只加载视频 不加载图片*/
+@property(nonatomic,assign)BOOL videoEnabled;
 @end
 
 

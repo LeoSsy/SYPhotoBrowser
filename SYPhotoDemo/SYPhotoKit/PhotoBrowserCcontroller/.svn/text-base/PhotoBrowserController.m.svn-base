@@ -13,8 +13,8 @@
 #import <Photos/Photos.h>
 #import <AssetsLibrary/AssetsLibrary.h>
 #import "PhotoLoadView.h"
-#import "TianmushanAPI.h"
-#import "TMSPhotoLibraryTool.h"
+#import "SYPhotoConst.h"
+#import "SYPhotoLibraryTool.h"
 
 #define PhotoBrowserControllerScreenWidth  [UIScreen mainScreen].bounds.size.width
 
@@ -41,7 +41,7 @@ static NSString * const reuseIdentifier = @"PhotoBrowserCell";
 - (instancetype)init
 {
     CGFloat width = [UIScreen mainScreen].bounds.size.width;
-    CGFloat height = [UIScreen mainScreen].bounds.size.height;
+    CGFloat height = [UIScreen mainScreen].bounds.size.height-0.1;
     UICollectionViewFlowLayout *layout = [[UICollectionViewFlowLayout alloc] init];
     layout.scrollDirection = UICollectionViewScrollDirectionHorizontal;
     layout.minimumLineSpacing = 0;
@@ -59,25 +59,53 @@ static NSString * const reuseIdentifier = @"PhotoBrowserCell";
     [super viewDidLoad];
     
     [self setup];
-    
 }
 
 - (void)viewWillAppear:(BOOL)animated
 {
     [super viewWillAppear:animated];
-    
     [self.navigationController.navigationBar setHidden:YES];
-    [[UIApplication sharedApplication] setStatusBarHidden:YES];
-  
 }
 
 - (void)viewWillDisappear:(BOOL)animated
 {
     [super viewWillDisappear:animated];
-    
     [self.navigationController.navigationBar setHidden:NO];
-    [[UIApplication sharedApplication] setStatusBarHidden:NO];
+}
 
+/**展示图片浏览器*/
+- (void)show
+{
+    UIWindow *window = [UIApplication sharedApplication].keyWindow;
+    [window addSubview:self.view];
+    [window.rootViewController addChildViewController:self];
+    
+//    self.titleLabel.text = [NSString stringWithFormat:@"%zd/%zd",++self.currentIndex,self.images.count];
+    //1. 获取当前点击的cell 的图片的frame 创建一个占位的图片覆盖到上面
+    //0.1创建占位图片
+//    self.view.backgroundColor = [UIColor blackColor];
+//    //将cell 的坐标转换为 window 的坐标
+//    CGRect orignalFrame = [self.sourceView convertRect:self.sourceView.frame toView:window];
+//    UIImageView *placeView = [[UIImageView alloc] initWithFrame:orignalFrame];
+//    placeView.image = self.placeImage?self.placeImage: [UIImage imageNamed:@""];
+//    placeView.alpha = 0.0;
+//    //4. 添加占位图像到窗口
+//    [window addSubview:placeView];
+//    //如果没有来源view久不显示
+//    if (self.sourceView == nil) {
+//        return;
+//    }
+//    CGFloat toHeight = self.placeImage.size.height * (SCREEN_WIDTH)/self.placeImage.size.width;
+//    CGSize size = CGSizeMake(SCREEN_WIDTH,toHeight);
+//    //计算图片比例
+//    CGRect endFrame = CGRectMake(0, 0, size.width, size.height);
+//    //5. 做缩放动画   动画完成后 移除占位图片
+//    [UIView animateWithDuration:0.25 animations:^{
+//        placeView.frame = endFrame;
+//        placeView.alpha = 1.0;
+//    } completion:^(BOOL finished) {
+//        [placeView removeFromSuperview];
+//    }];
 }
 
 /**
@@ -88,33 +116,18 @@ static NSString * const reuseIdentifier = @"PhotoBrowserCell";
 - (void)setAnimating:(BOOL)animating
 {
     _animating = animating;
-    
     if (animating) {
         self.navView.backgroundColor = [UIColor clearColor];
         self.close.hidden = YES;
     }
-    
 }
-
-
-/**
- *  显示到窗口
- */
-- (void)show{
-    
-    UIWindow *window = [UIApplication sharedApplication].keyWindow;
-    [window addSubview:self.view];
-    [window.rootViewController addChildViewController:self];
-    
-}
-
 
 #pragma mark 初始化设置
 - (void)setup
 {
     
     [self addNavView];
-    
+    self.automaticallyAdjustsScrollViewInsets = NO;
     self.collectionView.contentSize = CGSizeMake((PhotoBrowserControllerScreenWidth + 16) * self.images.count, SCREEN_HEIGHT);
     self.collectionView.frame = CGRectMake(0, 0, (PhotoBrowserControllerScreenWidth + 16), SCREEN_HEIGHT);
     [self.collectionView registerClass:[PhotoBrowserCell class] forCellWithReuseIdentifier:reuseIdentifier];
@@ -177,7 +190,7 @@ BOOL selected = false;
 /**
  *  设置当前显示图片
  *
- *  @param currentIndex <#currentIndex description#>
+ *  @param currentIndex 当前图片的下标
  */
 - (void)setCurrentIndex:(NSInteger)currentIndex
 {
@@ -200,7 +213,6 @@ BOOL selected = false;
     cell.indexPath = indexPath;
     return cell;
 }
-
 
 #pragma mark  scrollview offset
 
@@ -233,7 +245,40 @@ BOOL selected = false;
 #pragma mark PhotoBrowserCellDelegate
 - (void)photoBrowserCellImageClick:(PhotoBrowserCell *)cell indexPath:(NSIndexPath *)indexPath
 {
-    [self tap];
+    //如果需要动画
+    if (self.isAnimating) {
+        [self.view removeFromSuperview];
+        //0.获取window
+        UIWindow *window = [UIApplication sharedApplication].keyWindow;
+        window.backgroundColor = [UIColor blackColor];
+        //1. 获取当前点击的cell 的图片的frame 创建一个占位的图片覆盖到上面
+        //0.1创建占位图片
+        //将cell 的坐标转换为 window 的坐标
+        CGRect orignalFrame = [cell convertRect:cell.imageView.frame toView:window];
+        UIImageView *placeView = [[UIImageView alloc] initWithFrame:orignalFrame];
+        placeView.image = cell.imageView.image;
+        placeView.alpha = 1.0;
+        //4. 添加占位图像到窗口
+        [window addSubview:placeView];
+        //2. 然后获取cell 当前的模型 对应的来源view
+        PhotoBrowserItem *item = self.images[indexPath.row];
+        //如果没有来源view久不显示
+        if (item.sourceView == nil) {
+            return;
+        }
+        UIView *sourceView = item.sourceView;
+        //3. 然后将当前的坐标 转换到window 上的坐标
+        CGRect endFrame = [sourceView convertRect:sourceView.frame toView:window];
+        //5. 做缩放动画   动画完成后 移除占位图片
+        [UIView animateWithDuration:0.25 animations:^{
+            placeView.frame = endFrame;
+        } completion:^(BOOL finished) {
+            [placeView removeFromSuperview];
+            [self removeFromParentViewController];
+        }];
+    }else{ //否则直接关闭
+        [self tap];
+    }
 }
 
 #pragma mark 关闭当前视图方法
@@ -242,10 +287,7 @@ BOOL selected = false;
     [self.navigationController popViewControllerAnimated:YES];
 }
 
-
 @end
-
-
 
 #define STPhotoPadding  16
 
@@ -272,37 +314,25 @@ BOOL selected = false;
 {
     _item = item;
 
+    self.indicatorView.hidden = NO;
+    self.loadView.hidden = YES;
+    [self.loadView showLoading];
+    
     if ([item.imageUrl hasPrefix:@"http://"]) {
-
-        self.loadView.hidden = NO;
-        self.indicatorView.hidden = YES;
-        [self.loadView showLoading];
-
-        [self.imageView yy_setImageWithURL:[NSURL URLWithString:item.imageUrl]  placeholder:[UIImage imageNamed:@"default"] options:YYWebImageOptionProgressive|YYWebImageOptionSetImageWithFadeAnimation progress:^(NSInteger receivedSize, NSInteger expectedSize) {
-            self.loadView.progress = (float)receivedSize/expectedSize;
-        } transform:nil completion:^(UIImage * _Nullable image, NSURL * _Nonnull url, YYWebImageFromType from, YYWebImageStage stage, NSError * _Nullable error) {
-
-            self.imageView.image = image;
-
+        [self.imageView sd_setImageWithURL:[NSURL URLWithString:item.imageUrl] completed:^(UIImage * _Nullable image, NSError * _Nullable error, SDImageCacheType cacheType, NSURL * _Nullable imageURL) {
+            [self.indicatorView stopAnimating];
             [self.loadView removeFromSuperview];
-
         }];
-
         return;
     }
 
-    self.indicatorView.hidden = NO;
-    self.loadView.hidden = YES;
-
     if ([[UIDevice currentDevice].systemVersion floatValue]<8.0) {
-
         ALAsset *asset = (ALAsset*)item.asset;
         self.imageView.image = [UIImage resizeImage1280WithItem:[UIImage imageWithCGImage:asset.defaultRepresentation.fullScreenImage]];
         [self.indicatorView stopAnimating];
         [self.indicatorView removeFromSuperview];
 
     }else{
-
         [self.contentView insertSubview:self.indicatorView aboveSubview:self.imageView];
         [self.indicatorView startAnimating];
         PHAsset *asset = (PHAsset*)item.asset;
@@ -310,11 +340,10 @@ BOOL selected = false;
         //异步加载图片
         dispatch_async(dispatch_get_global_queue(0, 0), ^{
             strongifySelf
-            [[TMSPhotoLibraryTool sharedInstance] getThumbnailWithAsset:asset size:CGSizeMake(asset.pixelWidth,asset.pixelHeight) completionBlock:^(UIImage *image) {
+            [[SYPhotoLibraryTool sharedInstance] getThumbnailWithAsset:asset size:CGSizeMake(asset.pixelWidth,asset.pixelHeight) completionBlock:^(UIImage *image) {
                 dispatch_async(dispatch_get_main_queue(), ^{
                     self.imageView.image = image;
                     [self _resizeSubviews];
-
                     [self.indicatorView stopAnimating];
                     [self.indicatorView removeFromSuperview];
                 });
@@ -347,15 +376,11 @@ BOOL selected = false;
     [self.contentView addSubview:loadView];
     self.loadView = loadView;
 
-
     UIActivityIndicatorView *indicatorView = [[UIActivityIndicatorView alloc] initWithFrame:CGRectMake((SCREEN_WIDTH-50)*0.5, (SCREEN_HEIGHT-50)*0.5, 50, 50)];
-    
     indicatorView.activityIndicatorViewStyle = UIActivityIndicatorViewStyleWhiteLarge;
     [self.contentView addSubview:indicatorView];
     self.indicatorView = indicatorView;
 
-    
-    
     UITapGestureRecognizer *singleTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(_handleSingleTap)];
     UITapGestureRecognizer *doubleTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(_handleDoubleTap:)];
     doubleTap.numberOfTapsRequired = 2;
@@ -374,30 +399,15 @@ BOOL selected = false;
     if (!image) {
         return;
     }
-    
-    
-    //图片目标尺寸
-    /**
-        img w  h
-        to  w  h
-     
-     */
-    
     CGFloat toHeight = image.size.height * (self.bounds.size.width - STPhotoPadding)/image.size.width;
-    
     CGSize size = CGSizeMake(self.bounds.size.width - STPhotoPadding,toHeight);
-    
     self.containerView.frame = CGRectMake(0, 0, size.width, size.height);
-    
     self.scrollView.contentSize = CGSizeMake(MAX(self.frame.size.width - 16, self.containerView.bounds.size.width), MAX(self.frame.size.height, self.containerView.bounds.size.height));
     [self.scrollView scrollRectToVisible:self.bounds animated:NO];
     self.scrollView.alwaysBounceVertical = self.containerView.frame.size.height <= self.frame.size.height ? NO : YES;
     self.imageView.frame = self.containerView.bounds;
     [self scrollViewDidZoom:self.scrollView];
     self.scrollView.maximumZoomScale = MAX(MAX(image.size.width/(self.bounds.size.width), image.size.height / self.bounds.size.height), 3.f);
-    
-    
-    
 }
 
 /**
@@ -412,7 +422,7 @@ BOOL selected = false;
 /**
  *  图片的双击事件
  *
- *  @param doubleTap <#doubleTap description#>
+ *  @param doubleTap 单击手势
  */
 - (void)_handleDoubleTap:(UITapGestureRecognizer *)doubleTap {
     
@@ -432,9 +442,6 @@ BOOL selected = false;
 
 /**
  *  要缩放的视图
- *
- *  @param scrollView
- *
  *  @return 返回要缩放的视图
  */
 - (nullable UIView *)viewForZoomingInScrollView:(UIScrollView *)scrollView {
@@ -443,9 +450,7 @@ BOOL selected = false;
 
 /**
  *  用户缩放图片的时候调用此方法
- *
- *  @param scrollView
- */
+*/
 - (void)scrollViewDidZoom:(UIScrollView *)scrollView {
     
     CGFloat offsetX = (scrollView.frame.size.width > scrollView.contentSize.width) ? (scrollView.frame.size.width - scrollView.contentSize.width) * 0.5 : 0.0;
@@ -493,7 +498,6 @@ BOOL selected = false;
 
 /**
  *  懒加载imageview
- *
  */
 - (UIImageView *)imageView {
     if (!_imageView) {
@@ -506,7 +510,6 @@ BOOL selected = false;
     return _imageView;
 }
 
-
 #pragma mark - Class Methods
 /**
  *  调整到指定尺寸
@@ -518,9 +521,7 @@ BOOL selected = false;
  */
 + (CGSize)adjustOriginSize:(CGSize)originSize
               toTargetSize:(CGSize)targetSize {
-    
     CGSize resultSize = CGSizeMake(originSize.width, originSize.height);
-    
     /** 计算图片的比例 */
     CGFloat widthPercent = (originSize.width ) / (targetSize.width);
     CGFloat heightPercent = (originSize.height ) / targetSize.height;

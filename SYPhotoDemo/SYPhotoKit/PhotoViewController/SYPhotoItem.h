@@ -93,5 +93,10 @@
 /**图片上传到服务器 对应的压缩尺寸 此字段是额外辅助字段*/
 @property(nonatomic,assign)CGSize scaleSize;
 
+/**
+ 获取原图
+ @param completion 获取完成后的回调
+ */
+- (void)getOriginalImageWithCompletion:(void(^)(UIImage *image))completion;
 
 @end

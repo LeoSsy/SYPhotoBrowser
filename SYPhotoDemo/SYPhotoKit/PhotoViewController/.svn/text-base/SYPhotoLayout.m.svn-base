@@ -9,23 +9,21 @@
  *           识产权保护的内容。
  ***************************************************************************/
 
-#import "PhotoLayout.h"
-#import "TianmushanAPI.h"
+#import "SYPhotoLayout.h"
+#import "SYPhotoConst.h"
 
-@implementation PhotoLayout
+@implementation SYPhotoLayout
 
 /**
  *  布局每一个item的大小 行间距 列间距
  */
 - (void)prepareLayout
 {
-    
     CGFloat margin = 5;
     self.minimumLineSpacing = margin;
     self.minimumInteritemSpacing = margin;
-    
     //1. 如果是 5s 显示 3列
-    if (IS_IPHONE_5) {
+    if (IS_IPHONE_5||IS_IPHONE_4_OR_LESS) {
         
         CGFloat itemw = (SCREEN_WIDTH - 4*margin)/3;
         self.itemSize = CGSizeMake(itemw, itemw);
@@ -40,7 +38,6 @@
         CGFloat itemw = (SCREEN_WIDTH - 5*margin)/4;
         self.itemSize = CGSizeMake(itemw, itemw);
     }
-    
 }
 
 @end
